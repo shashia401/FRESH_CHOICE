@@ -135,8 +135,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           discount_allowance: parseFloat(String(row['Discount/Allowance'] || row['Discount Allowance'] || row['discount_allowance'] || '0').replace(/[$,]/g, '')) || 0,
           advertising_flag: Boolean(row['Advertising_Flag'] || row['Advertising'] || row['advertising_flag'] || row['ADVERTISING'] || row['Featured'] || false),
           order_type: row['Order_Type'] || row['Order Type'] || row['order_type'] || row['ORDER_TYPE'] || row['Type'] || 'Regular',
-          vendor_id: parseInt(row['Customer_No'] || row['Vendor ID'] || row['vendor_id'] || row['VENDOR_ID'] || row['Vendor'] || '1') || 1,
-          cust_cost_extended: undefined
+          vendor_id: parseInt(row['Customer_No'] || row['Vendor ID'] || row['vendor_id'] || row['VENDOR_ID'] || row['Vendor'] || '1') || 1
         };
 
         // Clean up UPC - remove spaces and ensure it's a string

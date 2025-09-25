@@ -1,66 +1,119 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { Download, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
+import { inventoryApi, vendorApi } from '../utils/api';
+import { InventoryItem } from '../types';
 
 export const ReportsPage: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState('consumption');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+  const [vendorData, setVendorData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [consumptionData, setConsumptionData] = useState<any[]>([]);
+  const [marginData, setMarginData] = useState<any[]>([]);
+  const [wasteData, setWasteData] = useState<any[]>([]);
+  const [salesTrendData, setSalesTrendData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
 
-  // Mock data for charts
-  const consumptionData = [
-    { name: 'Organic Apples', sales: 45, stock: 5, category: 'Produce' },
-    { name: 'Whole Milk', sales: 32, stock: 8, category: 'Dairy' },
-    { name: 'Wheat Bread', sales: 28, stock: 15, category: 'Bakery' },
-    { name: 'Greek Yogurt', sales: 25, stock: 12, category: 'Dairy' },
-    { name: 'Bananas', sales: 22, stock: 20, category: 'Produce' },
-    { name: 'Orange Juice', sales: 18, stock: 6, category: 'Beverages' },
-    { name: 'Chicken Breast', sales: 15, stock: 10, category: 'Meat' },
-    { name: 'Pasta', sales: 12, stock: 25, category: 'Pantry' },
-  ];
+  // Load real data from backend
+  useEffect(() => {
+    const loadReportsData = async () => {
+      try {
+        setIsLoading(true);
+        const [inventory, vendors] = await Promise.all([
+          inventoryApi.getAll(),
+          vendorApi.getAll().catch(() => []) // Fallback to empty array if vendors API fails
+        ]);
+        
+        setInventoryData(inventory);
+        setVendorData(vendors);
+        
+        // Calculate consumption data from inventory
+        const consumption = inventory.map(item => ({
+          name: item.description,
+          sales: item.sales_weekly || 0,
+          stock: item.remaining_stock,
+          category: item.category
+        })).sort((a, b) => b.sales - a.sales).slice(0, 10);
+        setConsumptionData(consumption);
+        
+        // Calculate margin data by vendor
+        const vendorMargins = vendors.map(vendor => {
+          const vendorItems = inventory.filter(item => item.vendor_id === vendor.id);
+          const avgCost = vendorItems.reduce((sum, item) => sum + item.unit_cost, 0) / vendorItems.length || 0;
+          const avgRetail = vendorItems.reduce((sum, item) => sum + item.unit_retail, 0) / vendorItems.length || 0;
+          const margin = avgRetail > 0 ? ((avgRetail - avgCost) / avgRetail) * 100 : 0;
+          
+          return {
+            vendor: vendor.name,
+            items: vendorItems.length,
+            avgCost: avgCost,
+            avgRetail: avgRetail,
+            margin: margin
+          };
+        }).filter(vendor => vendor.items > 0);
+        setMarginData(vendorMargins);
+        
+        // Calculate waste data (items expiring soon)
+        const today = new Date();
+        const expired = inventory.filter(item => {
+          const expDate = new Date(item.expiration_date);
+          return expDate < today;
+        }).map(item => ({
+          id: item.id,
+          item: item.description,
+          quantity: item.remaining_stock,
+          expired: item.expiration_date,
+          value: item.remaining_stock * item.unit_cost
+        }));
+        setWasteData(expired);
+        
+        // Calculate sales trend (mock weekly data for now)
+        const weeklyTrend = [
+          { week: 'Week 1', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 0.8), 0) },
+          { week: 'Week 2', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 0.9), 0) },
+          { week: 'Week 3', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 0.7), 0) },
+          { week: 'Week 4', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 1.1), 0) },
+          { week: 'Week 5', sales: inventory.reduce((sum, item) => sum + item.sales_weekly, 0) },
+        ];
+        setSalesTrendData(weeklyTrend);
+        
+        // Calculate category distribution
+        const categoryStats = inventory.reduce((acc, item) => {
+          acc[item.category] = (acc[item.category] || 0) + item.sales_weekly;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+        const categoryChartData = Object.entries(categoryStats).map(([name, value], index) => ({
+          name,
+          value: Math.round(value || 0),
+          color: colors[index % colors.length]
+        })).sort((a, b) => b.value - a.value).slice(0, 8);
+        setCategoryData(categoryChartData);
+        
+      } catch (error) {
+        console.error('Failed to load reports data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadReportsData();
+  }, []);
 
-  // Categories for filtering
-  const categories = ['All', 'Produce', 'Dairy', 'Bakery', 'Meat', 'Beverages', 'Pantry', 'Frozen', 'Deli'];
+  // Categories for filtering - dynamically generated from real data
+  const categories = ['All', ...Array.from(new Set(inventoryData.map(item => item.category)))];
 
   // Filter consumption data based on selected category
   const filteredConsumptionData = selectedCategory === 'All' 
     ? consumptionData 
     : consumptionData.filter(item => item.category === selectedCategory);
-
-  const marginData = [
-    { vendor: 'Fresh Farms', items: 45, avgCost: 3.20, avgRetail: 4.80, margin: 33.3 },
-    { vendor: 'Dairy Co', items: 32, avgCost: 2.85, avgRetail: 4.25, margin: 32.9 },
-    { vendor: 'Local Bakery', items: 28, avgCost: 2.10, avgRetail: 3.49, margin: 39.8 },
-    { vendor: 'Meat Suppliers', items: 22, avgCost: 8.50, avgRetail: 12.99, margin: 34.6 },
-    { vendor: 'Beverage Inc', items: 18, avgCost: 1.75, avgRetail: 2.99, margin: 41.5 },
-  ];
-
-  const wasteData = [
-    { id: 1, item: 'Organic Strawberries', quantity: 12, expired: '2025-01-20', value: 48.00 },
-    { id: 2, item: 'Greek Yogurt', quantity: 8, expired: '2025-01-19', value: 32.00 },
-    { id: 3, item: 'Whole Wheat Bread', quantity: 5, expired: '2025-01-18', value: 17.45 },
-    { id: 4, item: 'Fresh Salmon', quantity: 3, expired: '2025-01-17', value: 45.87 },
-    { id: 5, item: 'Mixed Greens', quantity: 15, expired: '2025-01-16', value: 37.50 },
-  ];
-
-  const salesTrendData = [
-    { week: 'Week 1', sales: 8200 },
-    { week: 'Week 2', sales: 8650 },
-    { week: 'Week 3', sales: 7980 },
-    { week: 'Week 4', sales: 9200 },
-    { week: 'Week 5', sales: 8640 },
-  ];
-
-  const categoryData = [
-    { name: 'Produce', value: 35, color: '#10B981' },
-    { name: 'Dairy', value: 25, color: '#3B82F6' },
-    { name: 'Bakery', value: 20, color: '#F59E0B' },
-    { name: 'Meat', value: 12, color: '#EF4444' },
-    { name: 'Beverages', value: 8, color: '#8B5CF6' },
-  ];
 
   const totalWasteValue = wasteData.reduce((sum, item) => sum + item.value, 0);
 

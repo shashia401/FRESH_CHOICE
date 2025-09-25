@@ -7,20 +7,31 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backend": "node server/index.js",
+    "start": "npm run backend"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
     "file-saver": "^2.0.5",
+    "helmet": "^8.1.0",
     "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.63.0",
     "react-router-dom": "^7.9.2",
     "recharts": "^3.2.1",
+    "sqlite3": "^5.1.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

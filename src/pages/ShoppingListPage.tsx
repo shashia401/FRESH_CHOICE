@@ -5,6 +5,7 @@ import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Plus, Check, Trash2, ShoppingCart, Search, Package, X } from 'lucide-react';
 import { ShoppingListItem, InventoryItem } from '../types';
+import { shoppingListApi, inventoryApi } from '../utils/api';
 
 export const ShoppingListPage: React.FC = () => {
   const [items, setItems] = useState<ShoppingListItem[]>([]);
@@ -16,136 +17,36 @@ export const ShoppingListPage: React.FC = () => {
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [addQuantity, setAddQuantity] = useState(1);
 
-  // Mock shopping list data
+  // Load shopping list data from backend
   useEffect(() => {
-    const mockItems: ShoppingListItem[] = [
-      { id: 1, user_id: 1, inventory_id: 1, item_name: 'Whole Milk - Organic', quantity: 20, purchased: false },
-      { id: 2, user_id: 1, inventory_id: 2, item_name: 'Organic Apples - Honeycrisp', quantity: 50, purchased: false },
-      { id: 3, user_id: 1, item_name: 'Paper Towels', quantity: 12, purchased: true },
-      { id: 4, user_id: 1, item_name: 'Cleaning Supplies', quantity: 5, purchased: false },
-    ];
-    setItems(mockItems);
+    const loadShoppingList = async () => {
+      try {
+        const data = await shoppingListApi.getAll();
+        setItems(data);
+      } catch (error) {
+        console.error('Failed to load shopping list:', error);
+        setItems([]);
+      }
+    };
+
+    loadShoppingList();
   }, []);
 
-  // Mock inventory data
+  // Load inventory data from backend
   useEffect(() => {
-    const mockInventoryItems: InventoryItem[] = [
-      {
-        id: 1,
-        user_id: 1,
-        category: 'Dairy',
-        brand: 'Organic Valley',
-        department: 'Refrigerated',
-        item_sku: 'OV-MILK-001',
-        item_upc: '123456789012',
-        description: 'Whole Milk - Organic',
-        pack_size: '1 Gallon',
-        qty_shipped: 50,
-        remaining_stock: 5,
-        sales_weekly: 10,
-        aisle: 'A1',
-        row: '2',
-        bin: 'B3',
-        expiration_date: '2025-01-28',
-        unit_cost: 4.50,
-        vendor_cost: 3.80,
-        cust_cost_each: 5.99,
-        unit_retail: 5.99,
-        gross_margin: 0.25,
-        advertising_flag: false,
-        order_type: 'Regular',
-        vendor_id: 1,
-        created_at: '2024-12-01T10:00:00Z',
-        updated_at: '2024-12-15T14:30:00Z'
-      },
-      {
-        id: 2,
-        user_id: 1,
-        category: 'Produce',
-        brand: 'Fresh Farms',
-        department: 'Produce',
-        item_sku: 'FF-APPLE-001',
-        item_upc: '234567890123',
-        description: 'Organic Apples - Honeycrisp',
-        pack_size: '3 lb bag',
-        qty_shipped: 100,
-        remaining_stock: 8,
-        sales_weekly: 25,
-        aisle: 'P1',
-        row: '1',
-        bin: 'A1',
-        expiration_date: '2025-01-25',
-        unit_cost: 3.25,
-        vendor_cost: 2.80,
-        cust_cost_each: 4.99,
-        unit_retail: 4.99,
-        gross_margin: 0.35,
-        advertising_flag: true,
-        order_type: 'Premium',
-        vendor_id: 2,
-        created_at: '2024-12-05T09:15:00Z',
-        updated_at: '2024-12-20T16:45:00Z'
-      },
-      {
-        id: 3,
-        user_id: 1,
-        category: 'Bakery',
-        brand: 'Local Bakery',
-        department: 'Bakery',
-        item_sku: 'LB-BREAD-001',
-        item_upc: '345678901234',
-        description: 'Whole Wheat Bread',
-        pack_size: '24 oz loaf',
-        qty_shipped: 30,
-        remaining_stock: 15,
-        sales_weekly: 8,
-        aisle: 'B2',
-        row: '3',
-        bin: 'C2',
-        expiration_date: '2025-01-24',
-        unit_cost: 2.20,
-        vendor_cost: 1.80,
-        cust_cost_each: 3.49,
-        unit_retail: 3.49,
-        gross_margin: 0.37,
-        advertising_flag: false,
-        order_type: 'Regular',
-        vendor_id: 3,
-        created_at: '2024-12-10T11:20:00Z',
-        updated_at: '2024-12-18T13:10:00Z'
-      },
-      // Add more mock items
-      ...Array.from({ length: 20 }, (_, i) => ({
-        id: i + 4,
-        user_id: 1,
-        category: ['Produce', 'Dairy', 'Bakery', 'Meat', 'Beverages'][i % 5],
-        brand: ['Fresh Farms', 'Organic Valley', 'Local Bakery', 'Premium Meats', 'Pure Beverages'][i % 5],
-        department: 'General',
-        item_sku: `ITEM-${String(i + 4).padStart(3, '0')}`,
-        item_upc: `${123456789000 + i + 4}`,
-        description: `Product ${i + 4} - ${['Organic', 'Fresh', 'Premium', 'Local', 'Natural'][i % 5]}`,
-        pack_size: '1 unit',
-        qty_shipped: Math.floor(Math.random() * 100) + 10,
-        remaining_stock: Math.floor(Math.random() * 20),
-        sales_weekly: Math.floor(Math.random() * 30) + 5,
-        aisle: `${String.fromCharCode(65 + (i % 5))}${Math.floor(i / 5) + 1}`,
-        row: String(Math.floor(Math.random() * 5) + 1),
-        bin: `B${Math.floor(Math.random() * 10) + 1}`,
-        expiration_date: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        unit_cost: Math.random() * 10 + 1,
-        vendor_cost: Math.random() * 8 + 1,
-        cust_cost_each: Math.random() * 15 + 2,
-        unit_retail: Math.random() * 15 + 2,
-        gross_margin: Math.random() * 0.5 + 0.1,
-        advertising_flag: Math.random() > 0.5,
-        order_type: 'Regular',
-        vendor_id: Math.floor(Math.random() * 3) + 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }))
-    ];
-    setInventoryItems(mockInventoryItems);
+    const loadInventory = async () => {
+      try {
+        const data = await inventoryApi.getAll();
+        setInventoryItems(data);
+      } catch (error) {
+        console.error('Failed to load inventory:', error);
+        setInventoryItems([]);
+      }
+    };
+
+    loadInventory();
   }, []);
+
 
   const handleAddItem = () => {
     if (newItemName.trim()) {

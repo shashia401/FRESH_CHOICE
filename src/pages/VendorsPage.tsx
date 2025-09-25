@@ -3,9 +3,10 @@ import { Card, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { Plus, CreditCard as Edit, Trash2, Building, Phone, Mail, MapPin, Eye, X, Save, Package, FileText, Calendar } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Building, Phone, Mail, MapPin, Eye, X, Save, Package, FileText } from 'lucide-react';
 import { Download, CheckCircle, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { Vendor } from '../types';
+import { vendorApi } from '../utils/api';
 
 interface VendorDetails extends Vendor {
   address?: string;
@@ -53,7 +54,6 @@ interface InvoiceItem {
 export const VendorsPage: React.FC = () => {
   const [vendors, setVendors] = useState<VendorDetails[]>([]);
   const [isAddingVendor, setIsAddingVendor] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const [newVendorName, setNewVendorName] = useState('');
   const [newVendorContact, setNewVendorContact] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<VendorDetails | null>(null);
@@ -67,145 +67,24 @@ export const VendorsPage: React.FC = () => {
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [invoiceDocuments, setInvoiceDocuments] = useState<{[key: number]: string}>({});
 
-  // Mock data
+  // Load vendors from backend
   useEffect(() => {
-    const mockVendors: VendorDetails[] = [
-      { 
-        id: 1, 
-        name: 'Fresh Farms Co.', 
-        contact_info: 'contact@freshfarms.com | (555) 123-4567',
-        address: '1234 Farm Road',
-        city: 'Green Valley',
-        state: 'CA',
-        zip: '90210',
-        phone: '(555) 123-4567',
-        email: 'contact@freshfarms.com',
-        website: 'www.freshfarms.com',
-        contact_person: 'John Smith',
-        payment_terms: 'Net 30',
-        tax_id: '12-3456789'
-      },
-      { 
-        id: 2, 
-        name: 'Organic Valley', 
-        contact_info: 'orders@organicvalley.com | (555) 234-5678',
-        address: '5678 Organic Lane',
-        city: 'Natural Springs',
-        state: 'OR',
-        zip: '97201',
-        phone: '(555) 234-5678',
-        email: 'orders@organicvalley.com',
-        website: 'www.organicvalley.com',
-        contact_person: 'Sarah Johnson',
-        payment_terms: 'Net 15',
-        tax_id: '98-7654321'
-      },
-      { 
-        id: 3, 
-        name: 'Local Bakery', 
-        contact_info: 'info@localbakery.com | (555) 345-6789',
-        address: '910 Baker Street',
-        city: 'Flour Town',
-        state: 'WA',
-        zip: '98101',
-        phone: '(555) 345-6789',
-        email: 'info@localbakery.com',
-        contact_person: 'Mike Baker',
-        payment_terms: 'Net 7',
-        tax_id: '45-6789012'
-      },
-      { 
-        id: 4, 
-        name: 'Dairy Distributors', 
-        contact_info: 'sales@dairydist.com | (555) 456-7890',
-        address: '1122 Milk Avenue',
-        city: 'Cream City',
-        state: 'WI',
-        zip: '53201',
-        phone: '(555) 456-7890',
-        email: 'sales@dairydist.com',
-        contact_person: 'Lisa White',
-        payment_terms: 'Net 30',
-        tax_id: '67-8901234'
-      },
-      { 
-        id: 5, 
-        name: 'Meat Suppliers Inc.', 
-        contact_info: 'orders@meatsuppliers.com | (555) 567-8901',
-        address: '3344 Butcher Block Blvd',
-        city: 'Protein Park',
-        state: 'TX',
-        zip: '75201',
-        phone: '(555) 567-8901',
-        email: 'orders@meatsuppliers.com',
-        contact_person: 'Tom Beef',
-        payment_terms: 'Net 21',
-        tax_id: '89-0123456'
-      },
-    ];
-    setVendors(mockVendors);
-  }, []);
-
-  // Mock invoice data - generate vendor-specific invoices
-  const getMockInvoices = (vendorId: number, vendorName: string): Invoice[] => {
-    // Create different invoice patterns for each vendor
-    const invoicePatterns = {
-      1: [ // Fresh Farms Co.
-        { id: 101, invoice_no: 'FF-2025-001', date: '2025-01-15', amount: 2450.75, status: 'paid' as const, items_count: 15 },
-        { id: 102, invoice_no: 'FF-2025-002', date: '2025-01-18', amount: 1890.50, status: 'pending' as const, items_count: 12 },
-        { id: 103, invoice_no: 'FF-2025-003', date: '2025-01-22', amount: 3200.75, status: 'paid' as const, items_count: 20 },
-        { id: 104, invoice_no: 'FF-2025-004', date: '2025-01-25', amount: 1650.25, status: 'overdue' as const, items_count: 8 },
-      ],
-      2: [ // Organic Valley
-        { id: 201, invoice_no: 'OV-2025-001', date: '2025-01-12', amount: 1875.50, status: 'paid' as const, items_count: 10 },
-        { id: 202, invoice_no: 'OV-2025-002', date: '2025-01-19', amount: 2340.25, status: 'pending' as const, items_count: 14 },
-        { id: 203, invoice_no: 'OV-2025-003', date: '2025-01-26', amount: 1560.00, status: 'paid' as const, items_count: 9 },
-      ],
-      3: [ // Local Bakery
-        { id: 301, invoice_no: 'LB-2025-001', date: '2025-01-10', amount: 890.25, status: 'overdue' as const, items_count: 8 },
-        { id: 302, invoice_no: 'LB-2025-002', date: '2025-01-17', amount: 1120.75, status: 'paid' as const, items_count: 11 },
-        { id: 303, invoice_no: 'LB-2025-003', date: '2025-01-24', amount: 945.50, status: 'pending' as const, items_count: 7 },
-      ],
-      4: [ // Dairy Distributors
-        { id: 401, invoice_no: 'DD-2025-001', date: '2025-01-14', amount: 3200.00, status: 'paid' as const, items_count: 25 },
-        { id: 402, invoice_no: 'DD-2025-002', date: '2025-01-21', amount: 2890.75, status: 'pending' as const, items_count: 18 },
-      ],
-      5: [ // Meat Suppliers Inc.
-        { id: 501, invoice_no: 'MS-2025-001', date: '2025-01-16', amount: 4500.25, status: 'paid' as const, items_count: 30 },
-        { id: 502, invoice_no: 'MS-2025-002', date: '2025-01-23', amount: 3750.50, status: 'overdue' as const, items_count: 22 },
-      ]
+    const loadVendors = async () => {
+      try {
+        const data = await vendorApi.getAll();
+        setVendors(data);
+      } catch (error) {
+        console.error('Failed to load vendors:', error);
+        // Fallback to empty array if backend fails
+        setVendors([]);
+      }
     };
 
-    const vendorInvoices = invoicePatterns[vendorId as keyof typeof invoicePatterns] || [];
-    
-    return vendorInvoices.map(invoice => ({
-      ...invoice,
-      vendor_id: vendorId,
-      vendor_name: vendorName,
-      invoice_date: invoice.date,
-      due_date: new Date(new Date(invoice.date).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      total_amount: invoice.amount,
-      item_count: invoice.items_count,
-      created_at: invoice.date + 'T10:00:00Z'
-    }));
-  };
+    loadVendors();
+  }, []);
 
-  // Mock products data
-  const getMockProducts = (vendorId: number): VendorProduct[] => {
-    const productTemplates = [
-      { name: 'Organic Apples', category: 'Produce', unit_cost: 3.25, last_ordered: '2024-01-15', total_ordered: 500 },
-      { name: 'Whole Milk', category: 'Dairy', unit_cost: 4.50, last_ordered: '2024-01-20', total_ordered: 200 },
-      { name: 'Wheat Bread', category: 'Bakery', unit_cost: 2.20, last_ordered: '2024-01-18', total_ordered: 150 },
-      { name: 'Ground Beef', category: 'Meat', unit_cost: 8.50, last_ordered: '2024-01-22', total_ordered: 80 },
-      { name: 'Orange Juice', category: 'Beverages', unit_cost: 3.75, last_ordered: '2024-01-19', total_ordered: 120 },
-    ];
 
-    return productTemplates.map((product, index) => ({
-      ...product,
-      id: index + 1 + (vendorId * 10),
-      name: `${product.name} - ${vendors.find(v => v.id === vendorId)?.name.split(' ')[0] || 'Brand'}`
-    }));
-  };
+
 
   const handleAddVendor = () => {
     if (newVendorName.trim()) {
@@ -238,44 +117,10 @@ export const VendorsPage: React.FC = () => {
     setShowInvoicesModal(true);
   };
 
-  // Mock function to get invoice items
-  const getInvoiceItems = (invoiceId: number): InvoiceItem[] => {
-    // Generate mock items based on invoice ID
-    const itemTemplates = [
-      { description: 'Organic Whole Milk', category: 'Dairy', unit_cost: 4.50, upc: '123456789012', sku: 'OV-MILK-001' },
-      { description: 'Fresh Bananas', category: 'Produce', unit_cost: 1.25, upc: '234567890123', sku: 'FF-BAN-001' },
-      { description: 'Whole Wheat Bread', category: 'Bakery', unit_cost: 2.20, upc: '345678901234', sku: 'LB-BREAD-001' },
-      { description: 'Greek Yogurt', category: 'Dairy', unit_cost: 5.99, upc: '456789012345', sku: 'OV-YOG-001' },
-      { description: 'Organic Apples', category: 'Produce', unit_cost: 3.25, upc: '567890123456', sku: 'FF-APP-001' },
-      { description: 'Ground Beef', category: 'Meat', unit_cost: 8.50, upc: '678901234567', sku: 'MS-BEEF-001' },
-      { description: 'Orange Juice', category: 'Beverages', unit_cost: 3.75, upc: '789012345678', sku: 'BV-OJ-001' },
-      { description: 'Cheddar Cheese', category: 'Dairy', unit_cost: 6.25, upc: '890123456789', sku: 'DD-CHE-001' },
-      { description: 'Chicken Breast', category: 'Meat', unit_cost: 12.99, upc: '901234567890', sku: 'MS-CHI-001' },
-      { description: 'Mixed Greens', category: 'Produce', unit_cost: 4.50, upc: '012345678901', sku: 'FF-GRE-001' }
-    ];
-
-    const numItems = Math.min(Math.floor(Math.random() * 8) + 5, itemTemplates.length);
-    const selectedItems = itemTemplates.slice(0, numItems);
-    
-    return selectedItems.map((template, index) => {
-      const quantity = Math.floor(Math.random() * 20) + 5;
-      return {
-        id: index + 1,
-        invoice_id: invoiceId,
-        description: template.description,
-        quantity,
-        unit_cost: template.unit_cost,
-        total_cost: quantity * template.unit_cost,
-        category: template.category,
-        upc: template.upc,
-        sku: template.sku
-      };
-    });
-  };
 
   const handleViewInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
-    setInvoiceItems(getInvoiceItems(invoice.id));
+    setInvoiceItems([]); // TODO: Load invoice items from backend API
     setShowInvoiceDetailModal(true);
   };
 
@@ -724,7 +569,8 @@ export const VendorsPage: React.FC = () => {
                   <Card>
                     <CardHeader title="Products Supplied" subtitle="Items provided by this vendor" />
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {getMockProducts(selectedVendor.id).map((product) => (
+                      {/* TODO: Replace with real vendor products from backend */}
+                      {[].map((product: any) => (
                         <div key={product.id} className="p-4 border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -786,7 +632,8 @@ export const VendorsPage: React.FC = () => {
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-4">
-                {getMockInvoices(selectedVendor.id, selectedVendor.name).map((invoice) => (
+                {/* TODO: Replace with real vendor invoices from backend */}
+                {[].map((invoice: any) => (
                   <div key={invoice.id} className="p-4 border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">

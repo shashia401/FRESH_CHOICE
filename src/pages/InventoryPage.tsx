@@ -9,6 +9,7 @@ import { ImportModal } from '../components/inventory/ImportModal';
 import { ExportModal } from '../components/inventory/ExportModal';
 import { Plus, Download, Upload, Scan } from 'lucide-react';
 import { InventoryItem } from '../types';
+import { inventoryApi } from '../utils/api';
 
 export const InventoryPage: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -24,97 +25,24 @@ export const InventoryPage: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
 
-  // Mock data
+  // Load inventory data from backend
   useEffect(() => {
-    const mockItems: InventoryItem[] = [
-      {
-        id: 1,
-        user_id: 1,
-        category: 'Dairy',
-        brand: 'Organic Valley',
-        department: 'Refrigerated',
-        item_sku: 'OV-MILK-001',
-        item_upc: '123456789012',
-        description: 'Whole Milk - Organic',
-        pack_size: '1 Gallon',
-        qty_shipped: 50,
-        remaining_stock: 5,
-        sales_weekly: 10,
-        aisle: 'A1',
-        row: '2',
-        bin: 'B3',
-        expiration_date: '2025-01-28',
-        unit_cost: 4.50,
-        vendor_cost: 3.80,
-        cust_cost_each: 5.99,
-        unit_retail: 5.99,
-        gross_margin: 0.25,
-        advertising_flag: false,
-        order_type: 'Regular',
-        vendor_id: 1,
-        created_at: '2024-12-01T10:00:00Z',
-        updated_at: '2024-12-15T14:30:00Z'
-      },
-      {
-        id: 2,
-        user_id: 1,
-        category: 'Produce',
-        brand: 'Fresh Farms',
-        department: 'Produce',
-        item_sku: 'FF-APPLE-001',
-        item_upc: '234567890123',
-        description: 'Organic Apples - Honeycrisp',
-        pack_size: '3 lb bag',
-        qty_shipped: 100,
-        remaining_stock: 0,
-        sales_weekly: 25,
-        aisle: 'P1',
-        row: '1',
-        bin: 'A1',
-        expiration_date: '2025-02-15',
-        unit_cost: 3.25,
-        vendor_cost: 2.80,
-        cust_cost_each: 4.99,
-        unit_retail: 4.99,
-        gross_margin: 0.35,
-        advertising_flag: true,
-        order_type: 'Premium',
-        vendor_id: 2,
-        created_at: '2024-12-05T09:15:00Z',
-        updated_at: '2024-12-20T16:45:00Z'
-      },
-      {
-        id: 3,
-        user_id: 1,
-        category: 'Bakery',
-        brand: 'Local Bakery',
-        department: 'Bakery',
-        item_sku: 'LB-BREAD-001',
-        item_upc: '345678901234',
-        description: 'Whole Wheat Bread',
-        pack_size: '24 oz loaf',
-        qty_shipped: 30,
-        remaining_stock: 15,
-        sales_weekly: 8,
-        aisle: 'B2',
-        row: '3',
-        bin: 'C2',
-        expiration_date: '2025-01-25',
-        unit_cost: 2.20,
-        vendor_cost: 1.80,
-        cust_cost_each: 3.49,
-        unit_retail: 3.49,
-        gross_margin: 0.37,
-        advertising_flag: false,
-        order_type: 'Regular',
-        vendor_id: 3,
-        created_at: '2024-12-10T11:20:00Z',
-        updated_at: '2024-12-18T13:10:00Z'
+    const loadInventoryData = async () => {
+      try {
+        const data = await inventoryApi.getAll();
+        setItems(data);
+        setFilteredItems(data);
+      } catch (error) {
+        console.error('Failed to load inventory:', error);
+        // Show empty state if backend fails
+        setItems([]);
+        setFilteredItems([]);
       }
-    ];
-    setItems(mockItems);
-    setFilteredItems(mockItems);
+    };
+
+    loadInventoryData();
   }, []);
+
 
   // Filter items based on search and filters
   useEffect(() => {
@@ -159,14 +87,30 @@ export const InventoryPage: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const handleSave = (updatedItem: InventoryItem) => {
-    setItems(items.map(item => 
-      item.id === updatedItem.id ? updatedItem : item
-    ));
+  const handleSave = async (updatedItem: InventoryItem) => {
+    try {
+      await inventoryApi.update(updatedItem.id, updatedItem);
+      // Reload data from backend
+      const data = await inventoryApi.getAll();
+      setItems(data);
+      setFilteredItems(data);
+    } catch (error) {
+      console.error('Failed to update item:', error);
+      alert('Failed to update item. Please try again.');
+    }
   };
 
-  const handleDelete = (id: number) => {
-    setItems(items.filter(item => item.id !== id));
+  const handleDelete = async (id: number) => {
+    try {
+      await inventoryApi.delete(id);
+      // Reload data from backend
+      const data = await inventoryApi.getAll();
+      setItems(data);
+      setFilteredItems(data);
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+      alert('Failed to delete item. Please try again.');
+    }
   };
 
   const handleScanSuccess = (decodedText: string) => {
@@ -191,30 +135,35 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
-  const handleAddItem = (newItemData: Omit<InventoryItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    const newItem: InventoryItem = {
-      ...newItemData,
-      id: Date.now(), // In a real app, this would be generated by the backend
-      user_id: 1, // Current user ID
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    setItems([...items, newItem]);
-    console.log('New item added:', newItem);
+  const handleAddItem = async (newItemData: Omit<InventoryItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await inventoryApi.create(newItemData);
+      // Reload data from backend
+      const data = await inventoryApi.getAll();
+      setItems(data);
+      setFilteredItems(data);
+      console.log('New item added successfully');
+    } catch (error) {
+      console.error('Failed to add item:', error);
+      alert('Failed to add item. Please try again.');
+    }
   };
 
-  const handleImportItems = (newItems: Omit<InventoryItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>[]) => {
-    const importedItems: InventoryItem[] = newItems.map((itemData, index) => ({
-      ...itemData,
-      id: Date.now() + index, // In a real app, this would be generated by the backend
-      user_id: 1, // Current user ID
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
-    
-    setItems([...items, ...importedItems]);
-    console.log(`${importedItems.length} items imported successfully`);
+  const handleImportItems = async (newItems: Omit<InventoryItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>[]) => {
+    try {
+      // Create each item individually
+      for (const itemData of newItems) {
+        await inventoryApi.create(itemData);
+      }
+      // Reload data from backend
+      const data = await inventoryApi.getAll();
+      setItems(data);
+      setFilteredItems(data);
+      console.log(`${newItems.length} items imported successfully`);
+    } catch (error) {
+      console.error('Failed to import items:', error);
+      alert('Failed to import items. Please try again.');
+    }
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
@@ -26,14 +26,11 @@ const navigation = [
 
 interface SidebarProps {
   onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+export const Sidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false, onToggleCollapse }) => {
 
   return (
     <div className={clsx(
@@ -56,19 +53,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         )}
         
         {/* Desktop toggle button */}
-        <div className="hidden lg:block ml-auto">
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-emerald-100 transition-colors duration-200 text-emerald-600 hover:text-emerald-800"
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <ChevronLeft className="h-5 w-5" />
-            )}
-          </button>
-        </div>
+        {onToggleCollapse && (
+          <div className="hidden lg:block ml-auto">
+            <button
+              onClick={onToggleCollapse}
+              className="p-2 rounded-lg hover:bg-emerald-100 transition-colors duration-200 text-emerald-600 hover:text-emerald-800"
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              data-testid="button-toggle-sidebar"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <ChevronLeft className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

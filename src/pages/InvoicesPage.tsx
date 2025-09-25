@@ -23,6 +23,7 @@ import {
   Plus
 } from 'lucide-react';
 import { Invoice, InventoryItem } from '../types';
+import { vendorApi } from '../utils/api';
 import * as XLSX from 'xlsx';
 
 interface InvoiceItem {
@@ -60,62 +61,25 @@ export const InvoicesPage: React.FC = () => {
     errors: { row: number; error: string }[];
   } | null>(null);
 
-  // Mock invoice data
+  // Load real invoice data from backend (currently using empty array until invoice API is implemented)
   useEffect(() => {
-    const mockInvoices: Invoice[] = [
-      {
-        id: 1,
-        invoice_number: 'INV-2025-001',
-        vendor_id: 1,
-        vendor_name: 'Fresh Farms Co.',
-        invoice_date: '2025-01-15',
-        due_date: '2025-02-14',
-        total_amount: 2450.75,
-        status: 'paid',
-        item_count: 15,
-        created_at: '2025-01-15T10:00:00Z'
-      },
-      {
-        id: 2,
-        invoice_number: 'INV-2025-002',
-        vendor_id: 2,
-        vendor_name: 'Organic Valley',
-        invoice_date: '2025-01-18',
-        due_date: '2025-02-17',
-        total_amount: 1875.50,
-        status: 'pending',
-        item_count: 12,
-        created_at: '2025-01-18T14:30:00Z'
-      },
-      {
-        id: 3,
-        invoice_number: 'INV-2025-003',
-        vendor_id: 3,
-        vendor_name: 'Local Bakery',
-        invoice_date: '2025-01-10',
-        due_date: '2025-02-09',
-        total_amount: 890.25,
-        status: 'overdue',
-        item_count: 8,
-        created_at: '2025-01-10T09:15:00Z'
-      },
-      // Add more mock invoices
-      ...Array.from({ length: 15 }, (_, i) => ({
-        id: i + 4,
-        invoice_number: `INV-2025-${String(i + 4).padStart(3, '0')}`,
-        vendor_id: (i % 3) + 1,
-        vendor_name: ['Fresh Farms Co.', 'Organic Valley', 'Local Bakery'][i % 3],
-        invoice_date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        due_date: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        total_amount: Math.random() * 3000 + 500,
-        status: ['paid', 'pending', 'overdue'][Math.floor(Math.random() * 3)] as 'paid' | 'pending' | 'overdue',
-        item_count: Math.floor(Math.random() * 20) + 5,
-        created_at: new Date().toISOString()
-      }))
-    ];
-    setInvoices(mockInvoices);
-    setFilteredInvoices(mockInvoices);
+    const loadInvoices = async () => {
+      try {
+        // TODO: Implement invoice API calls when backend is ready
+        // const data = await invoiceApi.getAll();
+        // setInvoices(data);
+        
+        // For now, keep empty array to show the interface without mock data
+        setInvoices([]);
+      } catch (error) {
+        console.error('Failed to load invoices:', error);
+        setInvoices([]);
+      }
+    };
+    
+    loadInvoices();
   }, []);
+
 
   // Filter invoices
   useEffect(() => {

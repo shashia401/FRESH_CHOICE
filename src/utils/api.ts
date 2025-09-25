@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://0700eb5a-cbb2-433f-8c5b-82a84250966a-00-2nwwdrtivgcr9.picard.replit.dev/api';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -7,53 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-// Mock users storage (in a real app, this would be handled by the backend)
-const mockUsers = [
-  { id: 1, email: 'admin@freshchoice.com', username: 'admin', password: 'password123' }
-];
-
-// Mock authentication functions
-const mockAuth = {
-  login: async (email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const user = mockUsers.find(u => u.email === email && u.password === password);
-    if (!user) {
-      throw new ApiError(401, 'Invalid credentials');
-    }
-    
-    return {
-      user: { id: user.id, email: user.email, username: user.username },
-      token: 'mock-jwt-token-' + Date.now()
-    };
-  },
-
-  signup: async (email: string, username: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Check if user already exists
-    const existingUser = mockUsers.find(u => u.email === email);
-    if (existingUser) {
-      throw new ApiError(400, 'User already exists');
-    }
-    
-    // Create new user
-    const newUser = {
-      id: mockUsers.length + 1,
-      email,
-      username,
-      password
-    };
-    mockUsers.push(newUser);
-    
-    return {
-      user: { id: newUser.id, email: newUser.email, username: newUser.username },
-      token: 'mock-jwt-token-' + Date.now()
-    };
-  }
-};
+// Frontend API integration with backend
 
 export const apiRequest = async (
   endpoint: string,
@@ -74,23 +28,33 @@ export const apiRequest = async (
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     
     if (!response.ok) {
-      throw new ApiError(response.status, `API Error: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new ApiError(response.status, errorData.error || `API Error: ${response.statusText}`);
     }
 
     return response.json();
   } catch (error) {
-    // If backend is not available, fall back to mock for auth endpoints
-    if (endpoint === '/login' || endpoint === '/signup') {
-      throw error; // Let the auth API handle this
+    if (error instanceof ApiError) {
+      throw error;
     }
-    throw new ApiError(500, 'Backend not available');
+    throw new ApiError(500, 'Network error or backend unavailable');
   }
 };
 
-// Auth API calls
+// Auth API calls - now using real backend
 export const authApi = {
-  login: mockAuth.login,
-  signup: mockAuth.signup,
+  login: async (email: string, password: string) => {
+    return apiRequest('/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+  signup: async (email: string, username: string, password: string) => {
+    return apiRequest('/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, username, password }),
+    });
+  },
 };
 
 

@@ -108,10 +108,55 @@ export const initDatabase = () => {
         )
       `);
 
-      // Insert default vendor
+      // Invoices table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS invoices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_number TEXT UNIQUE NOT NULL,
+          vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+          invoice_date TEXT NOT NULL,
+          due_date TEXT NOT NULL,
+          total_amount REAL DEFAULT 0,
+          status TEXT DEFAULT 'pending',
+          item_count INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Invoice items table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS invoice_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+          description TEXT NOT NULL,
+          quantity INTEGER DEFAULT 0,
+          unit_cost REAL DEFAULT 0,
+          total_cost REAL DEFAULT 0,
+          category TEXT,
+          upc TEXT,
+          sku TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // System settings table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          setting_key TEXT UNIQUE NOT NULL,
+          setting_value TEXT NOT NULL,
+          description TEXT,
+          data_type TEXT DEFAULT 'string',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Insert setup vendor (more generic than mock data)
       db.run(`
         INSERT OR IGNORE INTO vendors (id, name, contact_person, email, phone) 
-        VALUES (1, 'Default Vendor', 'Contact Person', 'contact@vendor.com', '555-0123')
+        VALUES (1, 'Setup Required', 'Please add vendor details', 'setup@yourstore.com', '000-000-0000')
       `);
 
       console.log('✅ Database initialized successfully');

@@ -1,6 +1,6 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { AuthPage } from '../pages/AuthPage';
+import { useNavigate } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -8,9 +8,16 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate('/auth');
+    }
+  }, [isLoggedIn, navigate]);
 
   if (!isLoggedIn) {
-    return <AuthPage />;
+    return null; // Will redirect via useEffect
   }
 
   return <>{children}</>;

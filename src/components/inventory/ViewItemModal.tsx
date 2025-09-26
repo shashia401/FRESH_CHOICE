@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { X, Package, TrendingUp, TrendingDown, Calendar, DollarSign, BarChart3 } from 'lucide-react';
 import { InventoryItem } from '../../types';
+import { analyticsApi } from '../../utils/api';
 
 interface ViewItemModalProps {
   isOpen: boolean;
@@ -40,88 +41,37 @@ export const ViewItemModal: React.FC<ViewItemModalProps> = ({
     avgWeeklySales: 0
   });
 
-  // Generate mock sales data when item changes
+  // Load real analytics data when item changes
   useEffect(() => {
     if (item) {
-      // Generate sales data
-      const generateSalesData = (): SalesData[] => {
-        const data: SalesData[] = [];
-        const baseWeeklySales = item.sales_weekly || 10;
-        
-        // Historical data (last 8 weeks)
-        for (let i = 8; i >= 1; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - (i * 7));
-          const variation = (Math.random() - 0.5) * 0.4; // ±20% variation
-          const sales = Math.max(0, Math.floor(baseWeeklySales * (1 + variation)));
-          data.push({
-            date: date.toISOString().split('T')[0],
-            sales,
-            forecast: false
-          });
-        }
-        
-        // Forecast data (next 4 weeks)
-        for (let i = 1; i <= 4; i++) {
-          const date = new Date();
-          date.setDate(date.getDate() + (i * 7));
-          const forecastVariation = (Math.random() - 0.5) * 0.2; // ±10% forecast variation
-          const forecastSales = Math.max(0, Math.floor(baseWeeklySales * (1 + forecastVariation)));
-          data.push({
-            date: date.toISOString().split('T')[0],
-            sales: forecastSales,
-            forecast: true
-          });
-        }
-        
-        return data;
-      };
-
-      // Generate movement data
-      const generateMovementData = (): MovementData[] => {
-        const data: MovementData[] = [];
-        const baseMovement = item.sales_weekly || 10;
-        
-        for (let i = 4; i >= 1; i--) {
-          const weekStart = new Date();
-          weekStart.setDate(weekStart.getDate() - (i * 7));
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekEnd.getDate() + 6);
+      const loadItemAnalytics = async () => {
+        try {
+          // Load all analytics data in parallel
+          const [salesHistory, movementHistory, summary] = await Promise.all([
+            analyticsApi.getItemSalesHistory(item.id),
+            analyticsApi.getItemMovementHistory(item.id),
+            analyticsApi.getItemSummary(item.id)
+          ]);
           
-          const inMovement = Math.floor(baseMovement * (1.2 + Math.random() * 0.3)); // Restocking
-          const outMovement = Math.floor(baseMovement * (0.8 + Math.random() * 0.4)); // Sales
+          setSalesData(salesHistory);
+          setMovementData(movementHistory);
+          setSalesStats(summary);
           
-          data.push({
-            week: `${weekStart.getMonth() + 1}/${weekStart.getDate()}`,
-            in: inMovement,
-            out: outMovement,
-            net: inMovement - outMovement
+        } catch (error) {
+          console.error('Failed to load item analytics:', error);
+          // Fallback to empty data if API fails
+          setSalesData([]);
+          setMovementData([]);
+          setSalesStats({
+            totalSales: 0,
+            trend: 0,
+            forecastAccuracy: 0,
+            avgWeeklySales: 0
           });
         }
-        
-        return data;
       };
-
-      const salesData = generateSalesData();
-      const movementData = generateMovementData();
       
-      setSalesData(salesData);
-      setMovementData(movementData);
-
-      // Calculate stats
-      const historicalSales = salesData.filter(d => !d.forecast);
-      const totalSales = historicalSales.reduce((sum, d) => sum + d.sales, 0);
-      const avgWeeklySales = totalSales / historicalSales.length;
-      const trend = historicalSales.length > 1 
-        ? ((historicalSales[historicalSales.length - 1].sales - historicalSales[0].sales) / historicalSales[0].sales) * 100
-        : 0;
-
-      setSalesStats({
-        totalSales,
-        trend,
-        forecastAccuracy: 85 + Math.random() * 10,
-        avgWeeklySales
-      });
+      loadItemAnalytics();
     }
   }, [item]);
 

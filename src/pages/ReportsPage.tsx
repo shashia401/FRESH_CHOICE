@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/Badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { Download, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils';
-import { inventoryApi, vendorApi } from '../utils/api';
+import { inventoryApi, vendorApi, reportsApi } from '../utils/api';
 import { InventoryItem } from '../types';
 
 export const ReportsPage: React.FC = () => {
@@ -25,28 +25,30 @@ export const ReportsPage: React.FC = () => {
     const loadReportsData = async () => {
       try {
         setIsLoading(true);
-        const [inventory, vendors] = await Promise.all([
+        const [inventory, vendors, weeklyTrend] = await Promise.all([
           inventoryApi.getAll(),
-          vendorApi.getAll().catch(() => []) // Fallback to empty array if vendors API fails
+          vendorApi.getAll().catch(() => []), // Fallback to empty array if vendors API fails
+          reportsApi.getWeeklySalesTrend().catch(() => []) // Fallback to empty array if API fails
         ]);
         
         setInventoryData(inventory);
         setVendorData(vendors);
+        setSalesTrendData(weeklyTrend);
         
         // Calculate consumption data from inventory
-        const consumption = inventory.map(item => ({
+        const consumption = inventory.map((item: InventoryItem) => ({
           name: item.description,
           sales: item.sales_weekly || 0,
           stock: item.remaining_stock,
           category: item.category
-        })).sort((a, b) => b.sales - a.sales).slice(0, 10);
+        })).sort((a: any, b: any) => b.sales - a.sales).slice(0, 10);
         setConsumptionData(consumption);
         
         // Calculate margin data by vendor
-        const vendorMargins = vendors.map(vendor => {
-          const vendorItems = inventory.filter(item => item.vendor_id === vendor.id);
-          const avgCost = vendorItems.reduce((sum, item) => sum + item.unit_cost, 0) / vendorItems.length || 0;
-          const avgRetail = vendorItems.reduce((sum, item) => sum + item.unit_retail, 0) / vendorItems.length || 0;
+        const vendorMargins = vendors.map((vendor: any) => {
+          const vendorItems = inventory.filter((item: InventoryItem) => item.vendor_id === vendor.id);
+          const avgCost = vendorItems.reduce((sum: number, item: InventoryItem) => sum + (item.unit_cost || 0), 0) / vendorItems.length || 0;
+          const avgRetail = vendorItems.reduce((sum: number, item: InventoryItem) => sum + (item.unit_retail || 0), 0) / vendorItems.length || 0;
           const margin = avgRetail > 0 ? ((avgRetail - avgCost) / avgRetail) * 100 : 0;
           
           return {
@@ -56,45 +58,36 @@ export const ReportsPage: React.FC = () => {
             avgRetail: avgRetail,
             margin: margin
           };
-        }).filter(vendor => vendor.items > 0);
+        }).filter((vendor: any) => vendor.items > 0);
         setMarginData(vendorMargins);
         
         // Calculate waste data (items expiring soon)
         const today = new Date();
-        const expired = inventory.filter(item => {
+        const expired = inventory.filter((item: InventoryItem) => {
+          if (!item.expiration_date) return false;
           const expDate = new Date(item.expiration_date);
           return expDate < today;
-        }).map(item => ({
+        }).map((item: InventoryItem) => ({
           id: item.id,
           item: item.description,
           quantity: item.remaining_stock,
           expired: item.expiration_date,
-          value: item.remaining_stock * item.unit_cost
+          value: item.remaining_stock * (item.unit_cost || 0)
         }));
         setWasteData(expired);
         
-        // Calculate sales trend (mock weekly data for now)
-        const weeklyTrend = [
-          { week: 'Week 1', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 0.8), 0) },
-          { week: 'Week 2', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 0.9), 0) },
-          { week: 'Week 3', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 0.7), 0) },
-          { week: 'Week 4', sales: inventory.reduce((sum, item) => sum + (item.sales_weekly * 1.1), 0) },
-          { week: 'Week 5', sales: inventory.reduce((sum, item) => sum + item.sales_weekly, 0) },
-        ];
-        setSalesTrendData(weeklyTrend);
-        
         // Calculate category distribution
-        const categoryStats = inventory.reduce((acc, item) => {
-          acc[item.category] = (acc[item.category] || 0) + item.sales_weekly;
+        const categoryStats = inventory.reduce((acc: Record<string, number>, item: InventoryItem) => {
+          acc[item.category] = (acc[item.category] || 0) + (item.sales_weekly || 0);
           return acc;
-        }, {} as Record<string, number>);
+        }, {});
         
         const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
         const categoryChartData = Object.entries(categoryStats).map(([name, value], index) => ({
           name,
           value: Math.round(value || 0),
           color: colors[index % colors.length]
-        })).sort((a, b) => b.value - a.value).slice(0, 8);
+        })).sort((a: any, b: any) => b.value - a.value).slice(0, 8);
         setCategoryData(categoryChartData);
         
       } catch (error) {
@@ -115,7 +108,7 @@ export const ReportsPage: React.FC = () => {
     ? consumptionData 
     : consumptionData.filter(item => item.category === selectedCategory);
 
-  const totalWasteValue = wasteData.reduce((sum, item) => sum + item.value, 0);
+  const totalWasteValue = wasteData.reduce((sum: number, item: any) => sum + item.value, 0);
 
   return (
     <div className="space-y-6">

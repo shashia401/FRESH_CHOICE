@@ -151,15 +151,24 @@ export const InventoryPage: React.FC = () => {
 
   const handleImportItems = async (newItems: Omit<InventoryItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>[]) => {
     try {
-      // Create each item individually
-      for (const itemData of newItems) {
-        await inventoryApi.create(itemData);
+      // Use bulk import endpoint
+      const result = await inventoryApi.bulkCreate(newItems);
+      
+      if (result.success > 0) {
+        // Reload data from backend
+        const data = await inventoryApi.getAll();
+        setItems(data);
+        setFilteredItems(data);
+        
+        if (result.errors.length > 0) {
+          // Show partial success message with error details
+          alert(`Successfully imported ${result.success} items. ${result.errors.length} items failed: ${result.errors.map((e: any) => `Row ${e.index + 1}: ${e.error}`).join(', ')}`);
+        } else {
+          alert(`Successfully imported ${result.success} items.`);
+        }
+      } else {
+        alert('No items were imported. Please check the file format and try again.');
       }
-      // Reload data from backend
-      const data = await inventoryApi.getAll();
-      setItems(data);
-      setFilteredItems(data);
-      console.log(`${newItems.length} items imported successfully`);
     } catch (error) {
       console.error('Failed to import items:', error);
       alert('Failed to import items. Please try again.');

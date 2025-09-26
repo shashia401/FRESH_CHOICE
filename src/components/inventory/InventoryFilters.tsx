@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Search, Filter, Package } from 'lucide-react';
+import { settingsApi } from '../../utils/api';
 
 interface InventoryFiltersProps {
   searchTerm: string;
@@ -20,8 +21,22 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
   selectedStatus,
   onStatusChange
 }) => {
-  const categories = ['All', 'Dairy', 'Produce', 'Bakery', 'Meat', 'Beverages', 'Pantry'];
+  const [categories, setCategories] = useState<string[]>(['All']);
   const statuses = ['All', 'In Stock', 'Low Stock', 'Out of Stock', 'Expiring Soon'];
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoriesData = await settingsApi.getCategories();
+        setCategories(['All', ...categoriesData]);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        // Fallback to default categories if API fails
+        setCategories(['All', 'Dairy', 'Produce', 'Bakery', 'Meat', 'Beverages', 'Pantry']);
+      }
+    };
+    loadCategories();
+  }, []);
 
   return (
     <div className="bg-gradient-to-r from-white to-emerald-50/50 rounded-2xl shadow-lg border-2 border-emerald-100 p-6 mb-6 backdrop-blur-sm">

@@ -23,7 +23,7 @@ import {
   Plus
 } from 'lucide-react';
 import { Invoice, InventoryItem } from '../types';
-import { vendorApi } from '../utils/api';
+import { vendorApi, invoiceApi } from '../utils/api';
 import * as XLSX from 'xlsx';
 
 interface InvoiceItem {
@@ -61,16 +61,12 @@ export const InvoicesPage: React.FC = () => {
     errors: { row: number; error: string }[];
   } | null>(null);
 
-  // Load real invoice data from backend (currently using empty array until invoice API is implemented)
+  // Load real invoice data from backend
   useEffect(() => {
     const loadInvoices = async () => {
       try {
-        // TODO: Implement invoice API calls when backend is ready
-        // const data = await invoiceApi.getAll();
-        // setInvoices(data);
-        
-        // For now, keep empty array to show the interface without mock data
-        setInvoices([]);
+        const data = await invoiceApi.getAll();
+        setInvoices(data);
       } catch (error) {
         console.error('Failed to load invoices:', error);
         setInvoices([]);
@@ -202,44 +198,16 @@ export const InvoicesPage: React.FC = () => {
 
   const vendors = Array.from(new Set(invoices.map(inv => inv.vendor_name)));
 
-  // Mock function to get invoice items
-  const getInvoiceItems = (invoiceId: number): InvoiceItem[] => {
-    // Generate mock items based on invoice ID
-    const itemTemplates = [
-      { description: 'Organic Whole Milk', category: 'Dairy', unit_cost: 4.50, upc: '123456789012', sku: 'OV-MILK-001' },
-      { description: 'Fresh Bananas', category: 'Produce', unit_cost: 1.25, upc: '234567890123', sku: 'FF-BAN-001' },
-      { description: 'Whole Wheat Bread', category: 'Bakery', unit_cost: 2.20, upc: '345678901234', sku: 'LB-BREAD-001' },
-      { description: 'Greek Yogurt', category: 'Dairy', unit_cost: 5.99, upc: '456789012345', sku: 'OV-YOG-001' },
-      { description: 'Organic Apples', category: 'Produce', unit_cost: 3.25, upc: '567890123456', sku: 'FF-APP-001' },
-      { description: 'Ground Beef', category: 'Meat', unit_cost: 8.50, upc: '678901234567', sku: 'MS-BEEF-001' },
-      { description: 'Orange Juice', category: 'Beverages', unit_cost: 3.75, upc: '789012345678', sku: 'BV-OJ-001' },
-      { description: 'Cheddar Cheese', category: 'Dairy', unit_cost: 6.25, upc: '890123456789', sku: 'DD-CHE-001' },
-      { description: 'Chicken Breast', category: 'Meat', unit_cost: 12.99, upc: '901234567890', sku: 'MS-CHI-001' },
-      { description: 'Mixed Greens', category: 'Produce', unit_cost: 4.50, upc: '012345678901', sku: 'FF-GRE-001' }
-    ];
-
-    const numItems = Math.min(Math.floor(Math.random() * 8) + 5, itemTemplates.length);
-    const selectedItems = itemTemplates.slice(0, numItems);
-    
-    return selectedItems.map((template, index) => {
-      const quantity = Math.floor(Math.random() * 20) + 5;
-      return {
-        id: index + 1,
-        invoice_id: invoiceId,
-        description: template.description,
-        quantity,
-        unit_cost: template.unit_cost,
-        total_cost: quantity * template.unit_cost,
-        category: template.category,
-        upc: template.upc,
-        sku: template.sku
-      };
-    });
-  };
-
-  const handleViewInvoice = (invoice: Invoice) => {
+  // Real function to get invoice items from API
+  const handleViewInvoice = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
-    setInvoiceItems(getInvoiceItems(invoice.id));
+    try {
+      const items = await invoiceApi.getItems(invoice.id);
+      setInvoiceItems(items);
+    } catch (error) {
+      console.error('Failed to load invoice items:', error);
+      setInvoiceItems([]);
+    }
     setShowInvoiceModal(true);
   };
 
@@ -548,7 +516,7 @@ export const InvoicesPage: React.FC = () => {
                       id="invoice-upload"
                     />
                     <label htmlFor="invoice-upload">
-                      <Button variant="primary" as="span">
+                      <Button variant="primary">
                         Choose File
                       </Button>
                     </label>

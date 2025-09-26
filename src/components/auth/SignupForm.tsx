@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../utils/api';
 import { Button } from '../ui/Button';
@@ -21,6 +22,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
+  const navigate = useNavigate();
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupFormData>();
   const password = watch('password');
@@ -32,8 +34,16 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
     try {
       const response = await authApi.signup(data.email, data.username, data.password);
       login(response.user, response.token);
-    } catch (err) {
-      setError('Failed to create account. Please try again.');
+      navigate('/'); // Redirect to dashboard after successful signup
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      if (err?.status === 400) {
+        setError('User already exists with this email.');
+      } else if (err?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError('Failed to create account. Please check your connection and try again.');
+      }
     } finally {
       setIsLoading(false);
     }

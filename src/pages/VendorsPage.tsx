@@ -66,6 +66,8 @@ export const VendorsPage: React.FC = () => {
   const [showInvoiceDetailModal, setShowInvoiceDetailModal] = useState(false);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [invoiceDocuments, setInvoiceDocuments] = useState<{[key: number]: string}>({});
+  const [vendorProducts, setVendorProducts] = useState<VendorProduct[]>([]);
+  const [vendorInvoices, setVendorInvoices] = useState<Invoice[]>([]);
 
   // Load vendors from backend
   useEffect(() => {
@@ -82,6 +84,40 @@ export const VendorsPage: React.FC = () => {
 
     loadVendors();
   }, []);
+
+  // Load vendor products when vendor is selected
+  useEffect(() => {
+    const loadVendorProducts = async () => {
+      if (selectedVendor) {
+        try {
+          const products = await vendorApi.getProducts(selectedVendor.id);
+          setVendorProducts(products);
+        } catch (error) {
+          console.error('Failed to load vendor products:', error);
+          setVendorProducts([]);
+        }
+      }
+    };
+
+    loadVendorProducts();
+  }, [selectedVendor]);
+
+  // Load vendor invoices when vendor is selected
+  useEffect(() => {
+    const loadVendorInvoices = async () => {
+      if (selectedVendor) {
+        try {
+          const invoices = await vendorApi.getInvoices(selectedVendor.id);
+          setVendorInvoices(invoices);
+        } catch (error) {
+          console.error('Failed to load vendor invoices:', error);
+          setVendorInvoices([]);
+        }
+      }
+    };
+
+    loadVendorInvoices();
+  }, [selectedVendor]);
 
 
 
@@ -118,9 +154,19 @@ export const VendorsPage: React.FC = () => {
   };
 
 
-  const handleViewInvoice = (invoice: Invoice) => {
+  const handleViewInvoice = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
-    setInvoiceItems([]); // TODO: Load invoice items from backend API
+    try {
+      if (selectedVendor) {
+        const items = await vendorApi.getInvoiceItems(selectedVendor.id, invoice.id);
+        setInvoiceItems(items);
+      } else {
+        setInvoiceItems([]);
+      }
+    } catch (error) {
+      console.error('Failed to load invoice items:', error);
+      setInvoiceItems([]);
+    }
     setShowInvoiceDetailModal(true);
   };
 
@@ -569,8 +615,7 @@ export const VendorsPage: React.FC = () => {
                   <Card>
                     <CardHeader title="Products Supplied" subtitle="Items provided by this vendor" />
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {/* TODO: Replace with real vendor products from backend */}
-                      {[].map((product: any) => (
+                      {vendorProducts.map((product) => (
                         <div key={product.id} className="p-4 border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -600,6 +645,13 @@ export const VendorsPage: React.FC = () => {
                           </div>
                         </div>
                       ))}
+                      {vendorProducts.length === 0 && (
+                        <div className="col-span-full text-center py-8">
+                          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600">No products found for this vendor</p>
+                          <p className="text-sm text-gray-500 mt-1">Products will appear here when inventory items are linked to this vendor</p>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 </div>
@@ -632,8 +684,7 @@ export const VendorsPage: React.FC = () => {
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-4">
-                {/* TODO: Replace with real vendor invoices from backend */}
-                {[].map((invoice: any) => (
+                {vendorInvoices.map((invoice) => (
                   <div key={invoice.id} className="p-4 border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -678,6 +729,13 @@ export const VendorsPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                {vendorInvoices.length === 0 && (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No invoices found for this vendor</p>
+                    <p className="text-sm text-gray-500 mt-1">Invoices will appear here when they are created and linked to this vendor</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

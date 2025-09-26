@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -7,6 +6,7 @@ import { Trash2, Package } from 'lucide-react';
 import { InventoryItem } from '../../types';
 import { formatDate, getStockStatusColor, getExpirationStatusColor } from '../../utils/dateUtils';
 import { clsx } from 'clsx';
+import { settingsApi } from '../../utils/api';
 
 interface InventoryTableProps {
   items: InventoryItem[];
@@ -20,10 +20,30 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   onDelete,
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settingsData = await settingsApi.getSettings();
+        setSettings(settingsData);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        // Use default settings if API fails
+        setSettings({
+          low_stock_threshold: { value: 10 },
+          expiration_warning_days: { value: 3 }
+        });
+      }
+    };
+    loadSettings();
+  }, []);
 
   const getStockBadge = (stock: number) => {
+    const lowStockThreshold = settings?.low_stock_threshold?.value || 10;
+    
     if (stock === 0) return <Badge variant="danger" size="sm">Out of Stock</Badge>;
-    if (stock <= 10) return <Badge variant="warning" size="sm">Low Stock</Badge>;
+    if (stock <= lowStockThreshold) return <Badge variant="warning" size="sm">Low Stock</Badge>;
     return <Badge variant="success" size="sm">In Stock</Badge>;
   };
 
@@ -33,9 +53,10 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     const today = new Date();
     const expiry = new Date(expirationDate);
     const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const warningDays = settings?.expiration_warning_days?.value || 3;
     
     if (daysUntilExpiry < 0) return <Badge variant="danger" size="sm">Expired</Badge>;
-    if (daysUntilExpiry <= 3) return <Badge variant="warning" size="sm">Expires Soon</Badge>;
+    if (daysUntilExpiry <= warningDays) return <Badge variant="warning" size="sm">Expires Soon</Badge>;
     return <Badge variant="success" size="sm">Fresh</Badge>;
   };
 

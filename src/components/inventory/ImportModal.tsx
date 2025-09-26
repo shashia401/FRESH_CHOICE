@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 import { X, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { InventoryItem } from '../../types';
+import { settingsApi } from '../../utils/api';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -77,13 +78,40 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
         raw: false
       });
 
-      const result = processImportData(jsonData);
+      // Use real API validation instead of mock validation
+      const result = await validateImportData(jsonData);
       setImportResult(result);
     } catch (error) {
       console.error('Error processing file:', error);
       alert('Error processing file. Please check the format and try again.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const validateImportData = async (data: any[]): Promise<ImportResult> => {
+    try {
+      // Use real API validation
+      const validationResult = await settingsApi.validateImport(data);
+      
+      if (validationResult.errors && validationResult.errors.length > 0) {
+        return {
+          success: validationResult.validItems?.length || 0,
+          errors: validationResult.errors,
+          items: validationResult.validItems || []
+        };
+      }
+      
+      // If API validation succeeds, return the processed items
+      return {
+        success: validationResult.validItems?.length || 0,
+        errors: [],
+        items: validationResult.validItems || []
+      };
+    } catch (error) {
+      console.error('API validation failed, falling back to local validation:', error);
+      // Fallback to local validation if API fails
+      return processImportData(data);
     }
   };
 

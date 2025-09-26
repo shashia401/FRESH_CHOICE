@@ -17,17 +17,17 @@ import {
   Plus,
   ArrowRight,
   Clock,
-  CheckCircle,
-  XCircle,
   Edit,
   Trash2
 } from 'lucide-react';
 import { DashboardStats, InventoryItem } from '../types';
-import { formatDate, getExpirationStatusColor } from '../utils/dateUtils';
-import { inventoryApi } from '../utils/api';
+import { formatDate } from '../utils/dateUtils';
+import { inventoryApi, dashboardApi } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalItems: 0,
     lowStockItems: 0,
@@ -35,133 +35,94 @@ export const DashboardPage: React.FC = () => {
     weeklySales: 0
   });
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   const [showDetailedView, setShowDetailedView] = useState<'total' | 'lowStock' | 'expiring' | 'sales' | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showShoppingListModal, setShowShoppingListModal] = useState(false);
-  const [showActivityModal, setShowActivityModal] = useState(false);
 
-  // Load real inventory data from backend
+  // Load real dashboard data from backend
   useEffect(() => {
-    const loadInventoryAndStats = async () => {
+    const loadDashboardData = async () => {
       try {
         setIsLoadingStats(true);
-        const items = await inventoryApi.getAll();
+        
+        // Load all data in parallel
+        const [items, dashboardStats, dashboardAlerts, activity] = await Promise.all([
+          inventoryApi.getAll(),
+          dashboardApi.getStats(),
+          dashboardApi.getAlerts(),
+          dashboardApi.getRecentActivity()
+        ]);
+        
         setInventoryItems(items);
+        setStats(dashboardStats);
+        setAlerts(dashboardAlerts);
+        setRecentActivity(activity);
         
-        // Calculate real stats from inventory data
-        const today = new Date();
-        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-        
-        const totalItems = items.length;
-        const lowStockItems = items.filter(item => item.remaining_stock <= 10).length;
-        const expiringItems = items.filter(item => {
-          const expDate = new Date(item.expiration_date);
-          return expDate <= nextWeek;
-        }).length;
-        const weeklySales = items.reduce((sum, item) => sum + (item.sales_weekly || 0), 0);
-        
-        setStats({
-          totalItems,
-          lowStockItems,
-          expiringItems,
-          weeklySales
-        });
       } catch (error) {
-        console.error('Failed to load inventory data:', error);
-        // Keep default zero stats on error
+        console.error('Failed to load dashboard data:', error);
+        // Fallback to calculating stats from inventory data
+        try {
+          const items = await inventoryApi.getAll();
+          setInventoryItems(items);
+          
+          const today = new Date();
+          const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+          
+          const totalItems = items.length;
+          const lowStockItems = items.filter((item: InventoryItem) => item.remaining_stock <= 10).length;
+          const expiringItems = items.filter((item: InventoryItem) => {
+            if (!item.expiration_date) return false;
+            const expDate = new Date(item.expiration_date);
+            return expDate <= nextWeek;
+          }).length;
+          const weeklySales = items.reduce((sum: number, item: InventoryItem) => sum + (item.sales_weekly || 0), 0);
+          
+          setStats({
+            totalItems,
+            lowStockItems,
+            expiringItems,
+            weeklySales
+          });
+        } catch (fallbackError) {
+          console.error('Fallback data loading failed:', fallbackError);
+        }
       } finally {
         setIsLoadingStats(false);
       }
     };
     
-    loadInventoryAndStats();
+    loadDashboardData();
   }, []);
-
-  // Generate real alerts from inventory data
-  const alerts = inventoryItems
-    .filter(item => {
-      const isLowStock = item.remaining_stock <= 10;
-      const isOutOfStock = item.remaining_stock === 0;
-      const expDate = new Date(item.expiration_date);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      const isExpiring = expDate <= nextWeek;
-      
-      return isLowStock || isOutOfStock || isExpiring;
-    })
-    .slice(0, 4) // Limit to 4 most critical alerts
-    .map((item, index) => {
-      const expDate = new Date(item.expiration_date);
-      const nextWeek = new Date();
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      const isExpiring = expDate <= nextWeek;
-      const isOutOfStock = item.remaining_stock === 0;
-      
-      return {
-        id: index + 1,
-        item: item.description,
-        stock: item.remaining_stock,
-        threshold: 10,
-        expiry: item.expiration_date,
-        type: isOutOfStock ? 'out-of-stock' : isExpiring ? 'expiring' : 'low-stock'
-      };
-    });
-
-  // Generate recent activity from inventory data (simulated based on recent updates)
-  const recentActivity = inventoryItems
-    .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
-    .slice(0, 5)
-    .map((item, index) => {
-      const timeDiff = Date.now() - new Date(item.updated_at || item.created_at).getTime();
-      const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
-      const timeText = hoursAgo < 24 ? `${hoursAgo} hours ago` : `${Math.floor(hoursAgo / 24)} days ago`;
-      
-      return {
-        id: index + 1,
-        action: item.remaining_stock === 0 ? 'Stock depleted' : 'Stock updated',
-        item: item.description,
-        time: timeText,
-        type: item.remaining_stock === 0 ? 'delete' : 'update',
-        user: 'admin',
-        details: item.remaining_stock === 0 
-          ? `Item is now out of stock` 
-          : `Current stock: ${item.remaining_stock} units`
-      };
-    });
 
   const handleCloseDetailedView = () => {
     setShowDetailedView(null);
   };
 
-  const handleAddItem = async (item: Omit<InventoryItem, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleAddItem = async (item: Omit<InventoryItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
       // Add item via API
       await inventoryApi.create(item);
       setShowAddModal(false);
       
-      // Refresh inventory data instead of reloading page
-      const updatedItems = await inventoryApi.getAll();
-      setInventoryItems(updatedItems);
+      // Refresh dashboard data
+      const [items, dashboardStats, dashboardAlerts, activity] = await Promise.all([
+        inventoryApi.getAll(),
+        dashboardApi.getStats(),
+        dashboardApi.getAlerts(),
+        dashboardApi.getRecentActivity()
+      ]);
       
-      // Recalculate stats
-      const today = new Date();
-      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      setInventoryItems(items);
+      setStats(dashboardStats);
+      setAlerts(dashboardAlerts);
+      setRecentActivity(activity);
       
-      const totalItems = updatedItems.length;
-      const lowStockItems = updatedItems.filter(item => item.remaining_stock <= 10).length;
-      const expiringItems = updatedItems.filter(item => {
-        const expDate = new Date(item.expiration_date);
-        return expDate <= nextWeek;
-      }).length;
-      const weeklySales = updatedItems.reduce((sum, item) => sum + (item.sales_weekly || 0), 0);
-      
-      setStats({ totalItems, lowStockItems, expiringItems, weeklySales });
     } catch (error) {
       console.error('Failed to add item:', error);
-      // TODO: Show error toast to user
     }
   };
 
@@ -172,11 +133,12 @@ export const DashboardPage: React.FC = () => {
 
   const filteredItems = () => {
     if (showDetailedView === 'lowStock') {
-      return inventoryItems.filter(item => item.remaining_stock <= 10);
+      return inventoryItems.filter((item: InventoryItem) => item.remaining_stock <= 10);
     } else if (showDetailedView === 'expiring') {
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
-      return inventoryItems.filter(item => {
+      return inventoryItems.filter((item: InventoryItem) => {
+        if (!item.expiration_date) return false;
         const expDate = new Date(item.expiration_date);
         return expDate <= nextWeek;
       });
@@ -288,12 +250,7 @@ export const DashboardPage: React.FC = () => {
       {/* Detailed View Modal */}
       {showDetailedView && (
         <DetailedView
-          title={
-            showDetailedView === 'total' ? 'All Items' :
-            showDetailedView === 'lowStock' ? 'Low Stock Items' :
-            showDetailedView === 'expiring' ? 'Expiring Items' :
-            'Sales Overview'
-          }
+          type={showDetailedView}
           items={filteredItems()}
           onClose={handleCloseDetailedView}
         />
@@ -303,9 +260,9 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
         <Card className="p-6">
-          <CardHeader className="pb-4">
+          <div className="pb-4">
             <h3 className="text-lg font-semibold">Quick Actions</h3>
-          </CardHeader>
+          </div>
           <div className="space-y-3">
             <button
               onClick={() => navigate('/inventory')}
@@ -342,9 +299,9 @@ export const DashboardPage: React.FC = () => {
 
         {/* Alerts */}
         <Card className="p-6">
-          <CardHeader className="pb-4">
+          <div className="pb-4">
             <h3 className="text-lg font-semibold">Alerts</h3>
-          </CardHeader>
+          </div>
           <div className="space-y-3">
             {alerts.slice(0, 4).map((alert) => (
               <div key={alert.id} className={`p-3 rounded-lg flex items-start space-x-3 ${getAlertColor(alert.type)}`}>
@@ -354,20 +311,25 @@ export const DashboardPage: React.FC = () => {
                   <p className="text-xs opacity-75">
                     {alert.type === 'low-stock' && `Stock: ${alert.stock} (Threshold: ${alert.threshold})`}
                     {alert.type === 'out-of-stock' && 'Out of stock'}
-                    {alert.type === 'expiring' && `Expires: ${formatDate(alert.expiry!)}`}
+                    {alert.type === 'expiring' && `Expires: ${formatDate(alert.expiry)}`}
                   </p>
                 </div>
               </div>
             ))}
+            {alerts.length === 0 && (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                No alerts at the moment
+              </div>
+            )}
           </div>
         </Card>
       </div>
 
       {/* Recent Activity */}
       <Card className="p-6">
-        <CardHeader className="pb-4">
+        <div className="pb-4">
           <h3 className="text-lg font-semibold">Recent Activity</h3>
-        </CardHeader>
+        </div>
         <div className="space-y-4">
           {recentActivity.map((activity) => (
             <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
@@ -382,27 +344,30 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-xs text-gray-500">{activity.time}</span>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">{activity.details}</p>
+                <p className="text-xs text-gray-500 mt-1">By: {activity.user}</p>
               </div>
             </div>
           ))}
+          {recentActivity.length === 0 && (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No recent activity
+            </div>
+          )}
         </div>
       </Card>
 
       {/* Modals */}
-      {showAddModal && (
-        <AddItemModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={handleAddItem}
-        />
-      )}
+      <AddItemModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddItem}
+      />
 
-      {showExportModal && (
-        <ExportModal
-          onClose={() => setShowExportModal(false)}
-          onExport={handleExport}
-          data={inventoryItems}
-        />
-      )}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        inventoryItems={inventoryItems}
+      />
     </div>
   );
 };

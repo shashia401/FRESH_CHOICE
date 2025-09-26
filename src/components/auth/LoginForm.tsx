@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../utils/api';
 import { Button } from '../ui/Button';
@@ -19,6 +20,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
+  const navigate = useNavigate();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
 
@@ -29,6 +31,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
     try {
       const response = await authApi.login(data.email, data.password);
       login(response.user, response.token);
+      navigate('/'); // Redirect to dashboard after successful login
     } catch (err) {
       setError('Invalid email or password. Please try again.');
     } finally {

@@ -36,8 +36,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-sm text-white">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="hidden sm:flex items-center space-x-2 text-sm text-white">
               <User className="h-4 w-4 text-emerald-100" />
               <span className="font-medium">{user?.username}</span>
             </div>
@@ -45,10 +45,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               variant="secondary"
               size="sm"
               onClick={handleLogout}
-              className="flex items-center space-x-2 bg-white/20 border-white/30 text-white hover:bg-white/30"
+              className="flex items-center space-x-1 sm:space-x-2 bg-white/20 border-white/30 text-white hover:bg-white/30"
             >
               <LogOut className="h-4 w-4" />
-              <span>Logout</span>
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>

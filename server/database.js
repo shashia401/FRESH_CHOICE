@@ -30,8 +30,23 @@ export const initDatabase = () => {
         )
       `);
 
-      // Note: No default admin user created for security
-      // Use signup endpoint or manual database setup to create admin users
+      // Create dummy login credentials for testing
+      const dummyUsers = [
+        { email: 'admin@freshchoice.com', username: 'Admin User', password: 'admin123' },
+        { email: 'manager@freshchoice.com', username: 'Manager', password: 'manager123' },
+        { email: 'demo@freshchoice.com', username: 'Demo User', password: 'demo123' }
+      ];
+
+      dummyUsers.forEach(user => {
+        const hashedPassword = bcrypt.hashSync(user.password, 10);
+        db.run(
+          'INSERT OR IGNORE INTO users (email, username, password) VALUES (?, ?, ?)',
+          [user.email, user.username, hashedPassword],
+          (err) => {
+            if (err) console.error('Error creating dummy user:', err);
+          }
+        );
+      });
       
       // Enable foreign key constraints
       db.run('PRAGMA foreign_keys = ON;');

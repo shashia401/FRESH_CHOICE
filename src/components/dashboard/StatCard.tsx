@@ -33,21 +33,21 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <Card 
-      hover 
+    <Card
+      hover
       className={`relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/30 border-2 border-emerald-100 group transition-all duration-200 ${
         onClick ? 'cursor-pointer hover:scale-105 hover:shadow-xl' : ''
       }`}
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-emerald-700">{title}</p>
-          <p className="text-3xl font-bold text-emerald-900 mt-1">{value}</p>
-          {subtitle && <p className="text-xs text-emerald-600 mt-1">{subtitle}</p>}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-emerald-700">{title}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-emerald-900 mt-1 truncate">{value}</p>
+          {subtitle && <p className="text-xs text-emerald-600 mt-1 truncate">{subtitle}</p>}
         </div>
-        <div className={`p-4 rounded-2xl ${colorClasses[color]} transform hover:scale-105 transition-transform duration-200`}>
-          <Icon className="h-6 w-6" />
+        <div className={`p-3 sm:p-4 rounded-2xl ${colorClasses[color]} transform hover:scale-105 transition-transform duration-200 flex-shrink-0`}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
       </div>
       

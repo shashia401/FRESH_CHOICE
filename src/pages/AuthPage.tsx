@@ -21,12 +21,20 @@ export const AuthPage: React.FC = () => {
       </div>
       
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-2xl mb-6 backdrop-blur-lg border border-white/30 shadow-2xl">
-            <Package className="h-8 w-8 text-white" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-2xl mb-4 sm:mb-6 backdrop-blur-lg border border-white/30 shadow-2xl">
+            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Fresh Choice</h1>
-          <p className="text-emerald-100 text-lg">Inventory Management System</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 drop-shadow-lg">Fresh Choice</h1>
+          <p className="text-emerald-100 text-base sm:text-lg">Inventory Management System</p>
+          <div className="mt-4 sm:mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+            <p className="text-xs sm:text-sm text-white font-medium mb-2">Demo Login Credentials:</p>
+            <div className="space-y-1 text-xs text-emerald-100">
+              <p>admin@freshchoice.com / admin123</p>
+              <p>manager@freshchoice.com / manager123</p>
+              <p>demo@freshchoice.com / demo123</p>
+            </div>
+          </div>
         </div>
 
         {isLogin ? (

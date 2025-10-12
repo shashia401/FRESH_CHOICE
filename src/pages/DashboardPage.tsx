@@ -185,34 +185,34 @@ export const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Overview of your inventory status</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Overview of your inventory status</p>
         </div>
-        <div className="flex space-x-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
+        <div className="flex space-x-2 sm:space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowExportModal(true)}
           >
             Export Data
           </Button>
-          <Button 
-            variant="primary" 
-            size="sm" 
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => setShowAddModal(true)}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Item</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <StatCard
           title="Total Items"
           value={isLoadingStats ? "..." : stats.totalItems.toString()}

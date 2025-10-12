@@ -75,7 +75,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
   return (
     <>
-      <Card>
+      {/* Desktop Table View */}
+      <Card className="hidden lg:block">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
@@ -102,8 +103,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((item) => (
-                <tr 
-                  key={item.id} 
+                <tr
+                  key={item.id}
                   className="hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                   onClick={() => onEdit(item)}
                 >
@@ -182,6 +183,102 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
           </table>
         </div>
       </Card>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden space-y-3">
+        {items.map((item) => (
+          <Card
+            key={item.id}
+            className="p-4 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => onEdit(item)}
+          >
+            <div className="space-y-3">
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-3 flex-1">
+                  <div className="bg-emerald-100 p-2 rounded-lg">
+                    <Package className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 truncate">{item.description}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {item.category} {item.brand && `• ${item.brand}`}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(item.id);
+                  }}
+                  className="ml-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Stock Info */}
+              <div className="flex items-center justify-between py-2 border-t border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">Stock:</span>
+                  <span className={clsx(
+                    'text-base font-bold px-2 py-0.5 rounded',
+                    getStockStatusColor(item.remaining_stock)
+                  )}>
+                    {item.remaining_stock}
+                  </span>
+                  {getStockBadge(item.remaining_stock)}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Shipped: {item.qty_shipped}
+                </div>
+              </div>
+
+              {/* Location & Expiration */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-gray-500 font-medium">Location:</span>
+                  <div className="text-gray-900 mt-0.5">
+                    {item.aisle ? (
+                      <>
+                        {item.aisle && `A${item.aisle}`}
+                        {item.row && ` R${item.row}`}
+                        {item.bin && ` B${item.bin}`}
+                      </>
+                    ) : (
+                      <span className="text-gray-400">Not set</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-gray-500 font-medium">Expiration:</span>
+                  <div className="mt-0.5">
+                    {item.expiration_date ? (
+                      <div className="space-y-1">
+                        <div className="text-gray-900">{formatDate(item.expiration_date)}</div>
+                        {getExpirationBadge(item.expiration_date)}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">No expiry</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* SKU/UPC */}
+              {(item.item_sku || item.item_upc) && (
+                <div className="pt-2 border-t border-gray-100 text-xs text-gray-500">
+                  {item.item_sku && `SKU: ${item.item_sku}`}
+                  {item.item_sku && item.item_upc && ' • '}
+                  {item.item_upc && `UPC: ${item.item_upc}`}
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (

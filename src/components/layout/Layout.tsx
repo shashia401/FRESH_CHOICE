@@ -42,7 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <main className={`flex-1 transition-all duration-300 ${
           sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
         }`}>
-          <div className="p-4 lg:p-6">
+          <div className="p-3 sm:p-4 lg:p-6">
             {children}
           </div>
         </main>

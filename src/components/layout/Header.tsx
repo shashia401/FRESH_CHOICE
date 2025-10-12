@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <div className="flex items-center space-x-2 sm:space-x-4">
             <div className="hidden sm:flex items-center space-x-2 text-sm text-white">
               <User className="h-4 w-4 text-emerald-100" />
-              <span className="font-medium">{user?.username}</span>
+              <span className="font-medium">{user?.user_metadata?.username || user?.email}</span>
             </div>
             <Button
               variant="secondary"

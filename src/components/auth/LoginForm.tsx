@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { authApi } from '../../utils/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card } from '../ui/Card';
@@ -29,11 +28,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
     setError(null);
 
     try {
-      const response = await authApi.login(data.email, data.password);
-      login(response.user, response.token);
-      navigate('/'); // Redirect to dashboard after successful login
-    } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      await login(data.email, data.password);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }

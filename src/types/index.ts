@@ -1,12 +1,12 @@
 export interface User {
-  id: number;
+  id: string;
   email: string;
   username: string;
 }
 
 export interface InventoryItem {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   invoice_no?: string;
   invoice_delivery_date?: string;
   category: string;
@@ -36,23 +36,23 @@ export interface InventoryItem {
   discount_allowance?: number;
   advertising_flag: boolean;
   order_type?: string;
-  vendor_id?: number;
+  vendor_id?: string;
   vendor_name?: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface ShoppingListItem {
-  id: number;
-  user_id: number;
-  inventory_id?: number;
+  id: string;
+  user_id: string;
+  inventory_id?: string;
   item_name: string;
   quantity: number;
   purchased: boolean;
 }
 
 export interface Vendor {
-  id: number;
+  id: string;
   name: string;
   contact_info?: string;
   address?: string;
@@ -68,9 +68,9 @@ export interface Vendor {
 }
 
 export interface Invoice {
-  id: number;
+  id: string;
   invoice_number: string;
-  vendor_id: number;
+  vendor_id: string;
   vendor_name: string;
   invoice_date: string;
   due_date: string;
@@ -81,9 +81,9 @@ export interface Invoice {
 }
 
 export interface WasteItem {
-  id: number;
-  user_id: number;
-  inventory_id?: number;
+  id: string;
+  user_id: string;
+  inventory_id?: string;
   item_name: string;
   expired_on: string;
   quantity: number;

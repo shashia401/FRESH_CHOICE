@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000/api';
+import { supabase } from '../lib/supabase';
+import { InventoryItem } from '../types';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -7,157 +8,440 @@ export class ApiError extends Error {
   }
 }
 
-// Frontend API integration with backend
-
-export const apiRequest = async (
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<any> => {
-  const token = localStorage.getItem('auth_token');
-  
-  const config: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-    ...options,
-  };
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: response.statusText }));
-      throw new ApiError(response.status, errorData.error || `API Error: ${response.statusText}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    console.error('API request failed:', error);
-    throw new ApiError(500, 'Network error or backend unavailable');
-  }
-};
-
-// Auth API calls - now using real backend
-export const authApi = {
-  login: async (email: string, password: string) => {
-    return apiRequest('/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  },
-  signup: async (email: string, username: string, password: string) => {
-    return apiRequest('/signup', {
-      method: 'POST',
-      body: JSON.stringify({ email, username, password }),
-    });
-  },
-};
-
-
-// Inventory API calls
+// Inventory API calls using Supabase
 export const inventoryApi = {
-  getAll: () => apiRequest('/inventory'),
-  create: (item: Partial<any>) => apiRequest('/inventory', {
-    method: 'POST',
-    body: JSON.stringify(item),
-  }),
-  bulkCreate: (items: Partial<any>[]) => apiRequest('/inventory/bulk', {
-    method: 'POST',
-    body: JSON.stringify({ items }),
-  }),
-  update: (id: number, item: Partial<any>) => apiRequest(`/inventory/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(item),
-  }),
-  delete: (id: number) => apiRequest(`/inventory/${id}`, {
-    method: 'DELETE',
-  }),
+  getAll: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('inventory')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new ApiError(500, error.message);
+    return data || [];
+  },
+
+  create: async (item: Partial<InventoryItem>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('inventory')
+      .insert([{ ...item, user_id: user.id }])
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  bulkCreate: async (items: Partial<InventoryItem>[]) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const itemsWithUserId = items.map(item => ({ ...item, user_id: user.id }));
+    const { data, error } = await supabase
+      .from('inventory')
+      .insert(itemsWithUserId)
+      .select();
+
+    if (error) throw new ApiError(500, error.message);
+    return { success: data?.length || 0, total: items.length, errors: [] };
+  },
+
+  update: async (id: string, item: Partial<InventoryItem>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('inventory')
+      .update({ ...item, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  delete: async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { error } = await supabase
+      .from('inventory')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) throw new ApiError(500, error.message);
+    return { success: true };
+  },
 };
 
 // Shopping list API calls
 export const shoppingListApi = {
-  getAll: () => apiRequest('/shopping-list'),
-  add: (item: Partial<any>) => apiRequest('/shopping-list', {
-    method: 'POST',
-    body: JSON.stringify(item),
-  }),
-  markPurchased: (id: number) => apiRequest(`/shopping-list/${id}/purchase`, {
-    method: 'PUT',
-  }),
+  getAll: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('shopping_list')
+      .select('*, vendors(name)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new ApiError(500, error.message);
+    return data || [];
+  },
+
+  add: async (item: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('shopping_list')
+      .insert([{ ...item, user_id: user.id }])
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  update: async (id: string, item: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('shopping_list')
+      .update({ ...item, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  markPurchased: async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('shopping_list')
+      .update({ purchased: true, purchase_date: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  delete: async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { error } = await supabase
+      .from('shopping_list')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) throw new ApiError(500, error.message);
+    return { success: true };
+  },
 };
 
-// Reports API calls
-export const reportsApi = {
-  getWaste: () => apiRequest('/reports/waste'),
-  getConsumption: () => apiRequest('/reports/consumption'),
-  getMargins: () => apiRequest('/reports/margins'),
-  getWeeklySalesTrend: () => apiRequest('/reports/weekly-sales-trend'),
-};
-
-// Vendor API calls
+// Vendors API calls
 export const vendorApi = {
-  getAll: () => apiRequest('/vendors'),
-  getById: (id: number) => apiRequest(`/vendors/${id}`),
-  create: (vendor: Partial<any>) => apiRequest('/vendors', {
-    method: 'POST',
-    body: JSON.stringify(vendor),
-  }),
-  update: (id: number, vendor: Partial<any>) => apiRequest(`/vendors/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(vendor),
-  }),
-  delete: (id: number) => apiRequest(`/vendors/${id}`, {
-    method: 'DELETE',
-  }),
-  getInvoices: (id: number) => apiRequest(`/vendors/${id}/invoices`),
-  getInvoiceItems: (vendorId: number, invoiceId: number) => apiRequest(`/vendors/${vendorId}/invoices/${invoiceId}/items`),
-  getProducts: (id: number) => apiRequest(`/vendors/${id}/products`),
-};
+  getAll: async () => {
+    const { data, error } = await supabase
+      .from('vendors')
+      .select('*')
+      .eq('active', true)
+      .order('name');
 
-// Invoice API calls
-export const invoiceApi = {
-  getAll: () => apiRequest('/invoices'),
-  getItems: (id: number) => apiRequest(`/invoices/${id}/items`),
-  create: (invoice: Partial<any>) => apiRequest('/invoices', {
-    method: 'POST',
-    body: JSON.stringify(invoice),
-  }),
-  updateStatus: (id: number, status: string) => apiRequest(`/invoices/${id}/status`, {
-    method: 'PUT',
-    body: JSON.stringify({ status }),
-  }),
+    if (error) throw new ApiError(500, error.message);
+    return data || [];
+  },
+
+  create: async (vendor: any) => {
+    const { data, error } = await supabase
+      .from('vendors')
+      .insert([vendor])
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  update: async (id: string, vendor: any) => {
+    const { data, error } = await supabase
+      .from('vendors')
+      .update({ ...vendor, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  delete: async (id: string) => {
+    const { error } = await supabase
+      .from('vendors')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new ApiError(500, error.message);
+    return { success: true };
+  },
 };
 
 // Dashboard API calls
 export const dashboardApi = {
-  getAlerts: () => apiRequest('/dashboard/alerts'),
-  getRecentActivity: () => apiRequest('/dashboard/activity'),
-  getStats: () => apiRequest('/dashboard/stats'),
-};
+  getStats: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
 
-// Analytics API calls
-export const analyticsApi = {
-  getItemSalesHistory: (id: number) => apiRequest(`/analytics/items/${id}/sales-history`),
-  getItemMovementHistory: (id: number) => apiRequest(`/analytics/items/${id}/movement-history`),
-  getItemSummary: (id: number) => apiRequest(`/analytics/items/${id}/summary`),
+    const { data: items } = await supabase
+      .from('inventory')
+      .select('remaining_stock, expiration_date, sales_weekly')
+      .eq('user_id', user.id);
+
+    if (!items) return { totalItems: 0, lowStockItems: 0, expiringItems: 0, weeklySales: 0 };
+
+    const today = new Date();
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const stats = {
+      totalItems: items.length,
+      lowStockItems: items.filter(item => item.remaining_stock <= 10).length,
+      expiringItems: items.filter(item => {
+        if (!item.expiration_date) return false;
+        const expDate = new Date(item.expiration_date);
+        return expDate <= nextWeek;
+      }).length,
+      weeklySales: items.reduce((sum, item) => sum + (item.sales_weekly || 0), 0),
+    };
+
+    return stats;
+  },
+
+  getAlerts: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data: items } = await supabase
+      .from('inventory')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (!items) return [];
+
+    const alerts: any[] = [];
+    const today = new Date();
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    items.forEach(item => {
+      if (item.remaining_stock === 0) {
+        alerts.push({
+          type: 'out-of-stock',
+          message: `${item.description} is out of stock`,
+          item_id: item.id,
+        });
+      } else if (item.remaining_stock <= 10) {
+        alerts.push({
+          type: 'low-stock',
+          message: `${item.description} is low on stock (${item.remaining_stock} remaining)`,
+          item_id: item.id,
+        });
+      }
+
+      if (item.expiration_date) {
+        const expDate = new Date(item.expiration_date);
+        if (expDate <= nextWeek) {
+          alerts.push({
+            type: 'expiring',
+            message: `${item.description} expires on ${item.expiration_date}`,
+            item_id: item.id,
+          });
+        }
+      }
+    });
+
+    return alerts;
+  },
+
+  getRecentActivity: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data: items } = await supabase
+      .from('inventory')
+      .select('id, description, created_at, updated_at')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(10);
+
+    if (!items) return [];
+
+    return items.map(item => ({
+      type: 'update',
+      description: `Updated ${item.description}`,
+      timestamp: item.updated_at || item.created_at,
+    }));
+  },
 };
 
 // Settings API calls
 export const settingsApi = {
-  getSettings: () => apiRequest('/settings'),
-  updateSetting: (key: string, value: any) => apiRequest(`/settings/${key}`, {
-    method: 'PUT',
-    body: JSON.stringify({ value }),
-  }),
-  getReorderCalculation: (itemId: number) => apiRequest(`/settings/reorder-calculation/${itemId}`),
-  getCategories: () => apiRequest('/settings/categories'),
-  validateImport: (items: any[]) => apiRequest('/settings/validate-import', {
-    method: 'POST',
-    body: JSON.stringify({ items }),
-  }),
+  getSettings: async () => {
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('*');
+
+    if (error) throw new ApiError(500, error.message);
+
+    const settings: any = {};
+    data?.forEach(setting => {
+      settings[setting.setting_key] = {
+        value: setting.data_type === 'number' ? Number(setting.setting_value) : setting.setting_value,
+        description: setting.description,
+      };
+    });
+
+    return settings;
+  },
+
+  updateSetting: async (key: string, value: string) => {
+    const { data, error} = await supabase
+      .from('system_settings')
+      .update({ setting_value: value, updated_at: new Date().toISOString() })
+      .eq('setting_key', key)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+};
+
+// Reports API calls
+export const reportsApi = {
+  getWaste: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const today = new Date();
+    const { data: items } = await supabase
+      .from('inventory')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (!items) return [];
+
+    return items.filter(item => {
+      if (!item.expiration_date) return false;
+      const expDate = new Date(item.expiration_date);
+      return expDate < today;
+    });
+  },
+
+  getConsumption: async () => {
+    return { message: 'Consumption report not yet implemented' };
+  },
+
+  getMargins: async () => {
+    return { message: 'Margins report not yet implemented' };
+  },
+
+  getWeeklySalesTrend: async () => {
+    return { message: 'Weekly sales trend not yet implemented' };
+  },
+};
+
+// Invoices API calls
+export const invoiceApi = {
+  getAll: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*, vendors(name)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new ApiError(500, error.message);
+    return data || [];
+  },
+
+  getById: async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*, vendors(name), invoice_items(*)')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  create: async (invoice: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert([{ ...invoice, user_id: user.id }])
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  update: async (id: string, invoice: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .update({ ...invoice, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(500, error.message);
+    return data;
+  },
+
+  delete: async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new ApiError(401, 'Unauthorized');
+
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) throw new ApiError(500, error.message);
+    return { success: true };
+  },
 };

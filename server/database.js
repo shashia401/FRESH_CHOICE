@@ -19,6 +19,9 @@ const db = new sqlite3.Database(join(DATA_DIR, 'freshchoice.db'));
 export const initDatabase = () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
+      // Enable foreign key constraints
+      db.run('PRAGMA foreign_keys = ON;');
+
       // Users table
       db.run(`
         CREATE TABLE IF NOT EXISTS users (
@@ -47,9 +50,28 @@ export const initDatabase = () => {
           }
         );
       });
-      
-      // Enable foreign key constraints
-      db.run('PRAGMA foreign_keys = ON;');
+
+      // Vendors table (must be created before inventory due to foreign key)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS vendors (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          contact_person TEXT,
+          email TEXT,
+          phone TEXT,
+          address TEXT,
+          payment_terms TEXT,
+          active BOOLEAN DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Insert setup vendor
+      db.run(`
+        INSERT OR IGNORE INTO vendors (id, name, contact_person, email, phone)
+        VALUES (1, 'Setup Required', 'Please add vendor details', 'setup@yourstore.com', '000-000-0000')
+      `);
 
       // Inventory table
       db.run(`
@@ -107,22 +129,6 @@ export const initDatabase = () => {
         )
       `);
 
-      // Vendors table
-      db.run(`
-        CREATE TABLE IF NOT EXISTS vendors (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          contact_person TEXT,
-          email TEXT,
-          phone TEXT,
-          address TEXT,
-          payment_terms TEXT,
-          active BOOLEAN DEFAULT 1,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
       // Invoices table
       db.run(`
         CREATE TABLE IF NOT EXISTS invoices (
@@ -168,13 +174,13 @@ export const initDatabase = () => {
         )
       `);
 
-      // Insert setup vendor (more generic than mock data)
-      db.run(`
-        INSERT OR IGNORE INTO vendors (id, name, contact_person, email, phone) 
-        VALUES (1, 'Setup Required', 'Please add vendor details', 'setup@yourstore.com', '000-000-0000')
-      `);
-
       console.log('✅ Database initialized successfully');
+      console.log('');
+      console.log('📝 Demo login credentials:');
+      console.log('   admin@freshchoice.com / admin123');
+      console.log('   manager@freshchoice.com / manager123');
+      console.log('   demo@freshchoice.com / demo123');
+      console.log('');
       resolve();
     });
   });

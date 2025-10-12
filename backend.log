@@ -1,0 +1,9 @@
+[dotenv@17.2.2] injecting env (2) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+✅ Database initialized successfully
+
+📝 Demo login credentials:
+   admin@freshchoice.com / admin123
+   manager@freshchoice.com / manager123
+   demo@freshchoice.com / demo123
+
+🚀 Fresh Choice Backend running on http://127.0.0.1:3000

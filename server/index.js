@@ -45,9 +45,9 @@ app.use(helmet());
 app.use(compression());
 // Restrict CORS to frontend origin in production
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
+  origin: process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL || 'https://your-frontend-domain.com'
-    : ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:5001', 'http://127.0.0.1:5001'],
+    : ['http://localhost:5000', 'http://127.0.0.1:5000', 'http://localhost:5001', 'http://127.0.0.1:5001', 'http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true
 };
 app.use(cors(corsOptions));
